@@ -363,6 +363,40 @@ What we know now:
 - punctuation attachment was worth fixing
 - corpus hygiene and RTL diagnostics were worth fixing
 - local and medium-sized shaping-width enrichments were not enough
+
+## Arabic probe phase
+
+To isolate the remaining Arabic break classes without dragging the full corpus along, we added a single-snippet probe page/checker (`/probe`, `scripts/probe-check.ts`).
+
+Two practical lessons from that phase:
+
+1. **Use normalized offsets, not raw file offsets**
+   - corpus diagnostics report offsets in the normalized text (`prepareWithSegments(text, font).segments.join('')`)
+   - probing raw Wikisource offsets gives the wrong substring and can falsely suggest that a mismatch is non-reproducible
+
+2. **Use the exact corpus font**
+   - rough probes with `18px serif` were misleading
+   - the Arabic corpus uses `20px "Geeza Pro", "Noto Naskh Arabic", "Arial", serif` with `34px` line height
+   - once the probe used the real font plus normalized slices, the recurring Arabic classes reproduced cleanly
+
+What the probe established:
+- the remaining Arabic classes are genuinely local browser break choices
+- they can reproduce in short snippets even when total snippet height still matches (because the shorter probe can re-sync later)
+- removing the **trailing punctuation on the moved phrase** can eliminate the mismatch:
+  - `لجاز،` vs `لجاز`
+  - `فيقول:` vs `فيقول`
+- removing punctuation on the earlier phrase did **not** eliminate the mismatch
+
+That strongly suggests the browser is sensitive to short RTL phrase boundaries where the phrase itself ends with punctuation and is immediately followed by more text without an intervening space.
+
+We also tried turning that observation into a layout heuristic and reverted it immediately:
+- it fixed the isolated probe snippets
+- but it badly over-broke the full Arabic corpus (`browser fits the longer line while our break logic cuts earlier`)
+
+Conclusion:
+- the probe tooling is a keeper
+- the punctuation finding is real
+- but it is not yet a safe direct heuristic for the main engine
 - no hot-path `measureText()` verification was reintroduced
 - the browser-facing public API stayed `prepare()` / `layout()`
 

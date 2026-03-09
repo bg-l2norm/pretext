@@ -11,6 +11,7 @@ Internal notes for contributors and agents. Use `README.md` as the public source
 - `bun run benchmark-check` / `:safari` — benchmark snapshot with both the short shared corpus and long-form corpus stress rows
 - `bun run gatsby-check` / `:safari` — Gatsby canary diagnostics
 - `bun run gatsby-sweep --start=300 --end=900 --step=10` — fast Gatsby width sweep; add `--diagnose` to rerun mismatching widths through the slow checker
+- `bun run probe-check --text='...' --width=320 --font='20px ...' --dir=rtl --lang=ar` — isolate a single snippet in the real browser
 
 ### Important files
 
@@ -42,6 +43,7 @@ Internal notes for contributors and agents. Use `README.md` as the public source
 - Keep `src/layout.test.ts` small and durable. For browser-specific or narrow hypothesis work, prefer throwaway probes/scripts and promote only the stable invariants into permanent tests.
 - For Gatsby canary work, sweep widths cheaply first and only diagnose the mismatching widths in detail. The slow detailed checker is for narrowing root causes, not for every width by default.
 - For Arabic corpus work, trust the RTL `Range`-based diagnostics over the old span-probe path. The remaining misses are currently more about break policy than raw width sums.
+- For Arabic probe work, always use normalized corpus slices and the exact corpus font. Raw file offsets or a rough fallback font will mislead you.
 
 ### Open questions
 
