@@ -67,7 +67,7 @@ async function freePort(port: number): Promise<void> {
 async function main(): Promise<void> {
   await freePort(PORT)
 
-  const child = spawn('/bin/zsh', ['-lc', `bun --port=${PORT} --no-hmr pages/*.html`], {
+  const child = spawn('/bin/zsh', ['-lc', `bun --watch --no-clear-screen --port=${PORT} pages/*.html`], {
     cwd: process.cwd(),
     stdio: 'inherit',
   })

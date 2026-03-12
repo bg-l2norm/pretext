@@ -93,7 +93,7 @@ Based on [Sebastian Markbage's text-layout](https://github.com/chenglou/text-lay
 
 ```bash
 bun install
-bun start        # http://localhost:3000 — demo pages (clears stale :3000 listeners first)
+bun start        # http://localhost:3000 — demo pages with full code reload (clears stale :3000 listeners first)
 bun run check    # typecheck + lint
 bun test         # lightweight invariants against the shipped implementation
 bun run accuracy-check         # Chrome browser sweep
