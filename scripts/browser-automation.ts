@@ -1,5 +1,5 @@
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, rmSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export type BrowserKind = 'chrome' | 'safari'
@@ -38,6 +38,48 @@ export function sleep(ms: number): Promise<void> {
 
 const LOCK_DIR = join(process.env['TMPDIR'] ?? '/tmp', 'pretext-browser-automation-locks')
 
+type LockMetadata = {
+  pid: number
+  startedAt: number
+}
+
+function readLockMetadata(lockPath: string): LockMetadata | null {
+  try {
+    const raw = readFileSync(lockPath, 'utf8')
+    const parsed = JSON.parse(raw) as Partial<LockMetadata>
+    if (
+      typeof parsed.pid !== 'number' ||
+      !Number.isInteger(parsed.pid) ||
+      parsed.pid <= 0 ||
+      typeof parsed.startedAt !== 'number'
+    ) {
+      return null
+    }
+    return {
+      pid: parsed.pid,
+      startedAt: parsed.startedAt,
+    }
+  } catch {
+    return null
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'EPERM'
+    ) {
+      return true
+    }
+    return false
+  }
+}
+
 export async function acquireBrowserAutomationLock(
   browser: AutomationBrowserKind,
   timeoutMs = 120_000,
@@ -49,6 +91,10 @@ export async function acquireBrowserAutomationLock(
   while (true) {
     try {
       const fd = openSync(lockPath, 'wx')
+      writeFileSync(fd, JSON.stringify({
+        pid: process.pid,
+        startedAt: Date.now(),
+      }))
       let released = false
       return {
         release() {
@@ -68,6 +114,15 @@ export async function acquireBrowserAutomationLock(
       }
     } catch (error) {
       if (!(error instanceof Error) || !String(error).includes('EEXIST')) throw error
+      const metadata = readLockMetadata(lockPath)
+      if (metadata !== null && !isProcessAlive(metadata.pid)) {
+        try {
+          rmSync(lockPath)
+          continue
+        } catch {
+          // Another process may have replaced or removed it. Retry normally.
+        }
+      }
       if (Date.now() - start >= timeoutMs) {
         throw new Error(`Timed out waiting for ${browser} automation lock`)
       }

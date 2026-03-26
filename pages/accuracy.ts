@@ -19,12 +19,24 @@ type Mismatch = {
   label: string
   font: string
   fontSize: number
+  lineHeight: number
   width: number
   actual: number
   predicted: number
   diff: number
   text: string
   diagnosticLines?: string[]
+}
+
+type AccuracyRow = {
+  label: string
+  font: string
+  fontSize: number
+  lineHeight: number
+  width: number
+  actual: number
+  predicted: number
+  diff: number
 }
 
 type AccuracyReport = {
@@ -35,6 +47,7 @@ type AccuracyReport = {
   matchCount?: number
   mismatchCount?: number
   mismatches?: Mismatch[]
+  rows?: AccuracyRow[]
   message?: string
 }
 
@@ -69,6 +82,8 @@ declare global {
 
 const params = new URLSearchParams(location.search)
 const requestId = params.get('requestId') ?? undefined
+const includeFullRows = params.get('full') === '1'
+const reportEndpoint = params.get('reportEndpoint')
 const reportEl = document.createElement('pre')
 reportEl.id = 'accuracy-report'
 reportEl.hidden = true
@@ -107,7 +122,17 @@ function publishReport(report: AccuracyReport): void {
   reportEl.dataset['ready'] = '1'
   window.__ACCURACY_REPORT__ = report
   window.__ACCURACY_READY__ = true
-  publishNavigationReport(report)
+  if (!includeFullRows) {
+    publishNavigationReport(report)
+  }
+  if (reportEndpoint !== null) {
+    void fetch(reportEndpoint, {
+      method: 'POST',
+      body: reportJson,
+    }).catch(() => {
+      // Best-effort side channel for large reports.
+    })
+  }
 }
 
 function publishNavigationReport(report: AccuracyReport): void {
@@ -149,12 +174,13 @@ function getBrowserLines(
   return browserLines
 }
 
-function runSweep(): { total: number, mismatches: Mismatch[] } {
+function runSweep(): { total: number, mismatches: Mismatch[], rows: AccuracyRow[] } {
   const container = document.createElement('div')
   container.style.cssText = 'position:absolute;top:-9999px;left:-9999px;visibility:hidden'
   document.body.appendChild(container)
 
   const mismatches: Mismatch[] = []
+  const rows: AccuracyRow[] = []
   let total = 0
 
   for (const fontFamily of FONTS) {
@@ -184,6 +210,16 @@ function runSweep(): { total: number, mismatches: Mismatch[] } {
           const { label, text } = TEXTS[i]!
           const actual = divs[i]!.getBoundingClientRect().height
           const predicted = layout(prepared[i]!, maxWidth, lineHeight).height
+          rows.push({
+            label,
+            font: fontFamily,
+            fontSize,
+            lineHeight,
+            width: maxWidth,
+            actual,
+            predicted,
+            diff: predicted - actual,
+          })
           total++
           if (Math.abs(actual - predicted) >= 1) {
             const browserLines = getBrowserLines(prepared[i]!, divs[i]!)
@@ -206,6 +242,7 @@ function runSweep(): { total: number, mismatches: Mismatch[] } {
               label,
               font: fontFamily,
               fontSize,
+              lineHeight,
               width: maxWidth,
               actual,
               predicted,
@@ -221,7 +258,7 @@ function runSweep(): { total: number, mismatches: Mismatch[] } {
   }
 
   document.body.removeChild(container)
-  return { total, mismatches }
+  return { total, mismatches, rows }
 }
 
 // --- Render ---
@@ -237,7 +274,7 @@ function render() {
 
   requestAnimationFrame(() => {
     try {
-      const { total, mismatches } = runSweep()
+      const { total, mismatches, rows } = runSweep()
       const matchCount = total - mismatches.length
       const pct = ((matchCount / total) * 100).toFixed(2)
 
@@ -304,6 +341,7 @@ function render() {
         matchCount,
         mismatchCount: mismatches.length,
         mismatches,
+        ...(includeFullRows ? { rows } : {}),
       }))
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

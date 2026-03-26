@@ -19,6 +19,11 @@ Official browser regression sweep:
 Notes:
 - This is the 4-font × 8-size × 8-width × 30-text browser corpus.
 - The public accuracy page is effectively a regression gate now, not the main steering metric.
+- Current machine-readable accuracy snapshots are checked in as:
+  - `accuracy/chrome.json`
+  - `accuracy/safari.json`
+  - `accuracy/firefox.json`
+- These accuracy snapshot files were captured on `2026-03-26`.
 
 ## Benchmark Snapshot
 
@@ -62,6 +67,8 @@ Notes:
 
 ## Pointers
 
+- Current machine-readable accuracy snapshots: `accuracy/chrome.json`, `accuracy/safari.json`, `accuracy/firefox.json`
 - Current machine-readable benchmark snapshots: `benchmarks/chrome.json`, `benchmarks/safari.json`
 - Long-form corpus canary status: `corpora/STATUS.md`
+- Current representative corpus rows: `corpora/representative.json`
 - Full exploration log: `RESEARCH.md`

@@ -4,7 +4,8 @@ Current sweep snapshot for the checked-in canaries.
 
 This is the compact status page. Historical reasoning, failed experiments, and
 why the numbers moved live in `RESEARCH.md`. The shared mismatch vocabulary now
-lives in `TAXONOMY.md`.
+lives in `TAXONOMY.md`. Current machine-readable representative rows live in
+`representative.json`.
 
 Conventions:
 - "anchors" means `300 / 600 / 800` unless noted otherwise
@@ -35,7 +36,7 @@ Conventions:
 | `ko-unsu-joh-eun-nal` | Korean | exact | not recently rerun | n/a | `61/61 exact` | Korean coarse corpus is clean |
 | `zh-guxiang` | Chinese | exact at `600 / 800`, `+64px` at `300` | exact | `6/9 exact` | `53/61 exact` | second Chinese canary; same Chrome-positive / Safari-clean split as `祝福`, but slightly healthier overall |
 | `zh-zhufu` | Chinese | exact at `600 / 800`, `+32px` at `300` | exact | `7/9 exact` | `44/61 exact` | real Chinese canary; broad positive one-line field in Chrome, exact Safari anchors |
-| `th-nithan-vetal-story-1` | Thai | exact at key sentinels after fixes | not recently rerun | n/a | `59/61 exact` | two remaining coarse one-line misses |
+| `th-nithan-vetal-story-1` | Thai | exact at key sentinels after fixes | exact | n/a | `59/61 exact` | two remaining coarse one-line misses |
 | `th-nithan-vetal-story-7` | Thai | exact | exact | `9/9 exact` | not fully rerun | second Thai canary stays healthy |
 | `km-prachum-reuang-preng-khmer-volume-7-stories-1-10` | Khmer | exact | exact | `9/9 exact` | not fully rerun | full `step=10` is slower; sampled check is the preferred first pass |
 | `my-cunning-heron-teacher` | Myanmar | exact | exact at anchors | `9/9 exact` | `56/61 exact` | real residual Myanmar canary; quote/follower and phrase-break classes remain |
@@ -102,4 +103,5 @@ bun run corpus-check --id=ur-chughd 300 600 800
 bun run corpus-sweep --id=ur-chughd --start=300 --end=900 --step=10
 bun run corpus-font-matrix --id=my-bad-deeds-return-to-you-teacher --samples=5
 bun run corpus-font-matrix --id=ur-chughd --samples=5
+bun run corpus-representative
 ```

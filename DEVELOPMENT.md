@@ -8,7 +8,11 @@ bun test         # lightweight invariants against the shipped implementation
 bun run accuracy-check         # Chrome browser sweep
 bun run accuracy-check:safari  # Safari browser sweep
 bun run accuracy-check:firefox # Firefox browser sweep
+bun run accuracy-snapshot      # Chrome raw accuracy snapshot -> accuracy/chrome.json
+bun run accuracy-snapshot:safari   # Safari raw accuracy snapshot -> accuracy/safari.json
+bun run accuracy-snapshot:firefox  # Firefox raw accuracy snapshot -> accuracy/firefox.json
 bun run benchmark-check        # Chrome benchmark snapshot (short corpus + long-form corpora)
+bun run corpus-representative  # representative corpus anchor rows -> corpora/representative.json
 bun run corpus-font-matrix --id=ar-risalat-al-ghufran-part-1 --samples=5  # sampled cross-font corpus check
 ```
 
@@ -28,7 +32,9 @@ See [RESEARCH.md](RESEARCH.md) for the full exploration log: every approach we t
 
 See:
 - [STATUS.md](STATUS.md) for the current compact benchmark snapshot
+- [accuracy/chrome.json](accuracy/chrome.json), [accuracy/safari.json](accuracy/safari.json), and [accuracy/firefox.json](accuracy/firefox.json) for the checked-in raw browser accuracy rows
 - [benchmarks/chrome.json](benchmarks/chrome.json) and [benchmarks/safari.json](benchmarks/safari.json) for the checked-in current benchmark snapshots
+- [corpora/representative.json](corpora/representative.json) for the compact machine-readable corpus anchor rows
 - [pages/benchmark.ts](pages/benchmark.ts) for the live benchmark harness
 
 ## Accuracy

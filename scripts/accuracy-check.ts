@@ -1,9 +1,9 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http'
 import { createConnection, createServer as createNetServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import {
   acquireBrowserAutomationLock,
   createBrowserSession,
@@ -16,12 +16,24 @@ type AccuracyMismatch = {
   label: string
   font: string
   fontSize: number
+  lineHeight: number
   width: number
   actual: number
   predicted: number
   diff: number
   text: string
   diagnosticLines?: string[]
+}
+
+type AccuracyRow = {
+  label: string
+  font: string
+  fontSize: number
+  lineHeight: number
+  width: number
+  actual: number
+  predicted: number
+  diff: number
 }
 
 type AccuracyReport = {
@@ -50,10 +62,18 @@ type AccuracyReport = {
   matchCount?: number
   mismatchCount?: number
   mismatches?: AccuracyMismatch[]
+  rows?: AccuracyRow[]
   message?: string
 }
 
 const browser = (process.env['ACCURACY_CHECK_BROWSER'] ?? 'chrome').toLowerCase() as BrowserKind | 'firefox'
+const includeFullRows = process.argv.includes('--full')
+
+function parseStringFlag(name: string): string | null {
+  const prefix = `--${name}=`
+  const arg = process.argv.find(value => value.startsWith(prefix))
+  return arg === undefined ? null : arg.slice(prefix.length)
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -151,6 +171,86 @@ async function startProxyServer(targetOrigin: string): Promise<{ baseUrl: string
   })
 
   return { baseUrl: `http://127.0.0.1:${port}/accuracy`, server }
+}
+
+async function startReportServer(expectedRequestId: string): Promise<{
+  endpoint: string
+  waitForReport: (timeoutMs?: number) => Promise<AccuracyReport>
+  close: () => void
+}> {
+  const port = await getAvailablePort()
+  let resolveReport: ((report: AccuracyReport) => void) | null = null
+  let rejectReport: ((error: Error) => void) | null = null
+  const reportPromise = new Promise<AccuracyReport>((resolve, reject) => {
+    resolveReport = resolve
+    rejectReport = reject
+  })
+
+  const server = createHttpServer((req, res) => {
+    res.setHeader('access-control-allow-origin', '*')
+    if (req.method === 'OPTIONS') {
+      res.setHeader('access-control-allow-methods', 'POST, OPTIONS')
+      res.statusCode = 204
+      res.end()
+      return
+    }
+
+    if (req.method !== 'POST') {
+      res.statusCode = 404
+      res.end()
+      return
+    }
+
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => {
+      body += chunk
+    })
+    req.on('end', () => {
+      try {
+        const report = JSON.parse(body) as AccuracyReport
+        if (report.requestId === expectedRequestId) {
+          resolveReport?.(report)
+        }
+        res.statusCode = 204
+        res.end()
+      } catch (error) {
+        res.statusCode = 400
+        res.end(error instanceof Error ? error.message : String(error))
+      }
+    })
+  })
+
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(port, '127.0.0.1', () => resolve())
+  })
+
+  return {
+    endpoint: `http://127.0.0.1:${port}/report`,
+    async waitForReport(timeoutMs = 120_000): Promise<AccuracyReport> {
+      return await new Promise<AccuracyReport>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error('Timed out waiting for posted accuracy report'))
+        }, timeoutMs)
+
+        reportPromise.then(
+          report => {
+            clearTimeout(timer)
+            resolve(report)
+          },
+          error => {
+            clearTimeout(timer)
+            reject(error)
+          },
+        )
+      })
+    },
+    close() {
+      server.close()
+      rejectReport?.(new Error('Accuracy report server closed before report arrived'))
+    },
+  }
 }
 
 type BidiResponse = {
@@ -326,6 +426,8 @@ function printReport(report: AccuracyReport): void {
 let serverProcess: ChildProcess | null = null
 let proxyServer: HttpServer | null = null
 const lock = await acquireBrowserAutomationLock(browser)
+const output = parseStringFlag('output')
+const usePostedReport = includeFullRows && browser !== 'firefox'
 
 try {
   let baseUrl: string
@@ -350,9 +452,38 @@ try {
   }
 
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  const url = `${baseUrl}?report=1&requestId=${requestId}`
-  const report = await loadBrowserReport(url, requestId)
+  let report: AccuracyReport
+
+  if (usePostedReport) {
+    const reportServer = await startReportServer(requestId)
+    try {
+      const session = createBrowserSession(browser)
+      try {
+        const url =
+          `${baseUrl}?report=1&requestId=${requestId}` +
+          `&full=1` +
+          `&reportEndpoint=${encodeURIComponent(reportServer.endpoint)}`
+        session.navigate(url)
+        report = await reportServer.waitForReport()
+      } finally {
+        session.close()
+      }
+    } finally {
+      reportServer.close()
+    }
+  } else {
+    const url =
+      `${baseUrl}?report=1&requestId=${requestId}` +
+      `${includeFullRows ? '&full=1' : ''}`
+    report = await loadBrowserReport(url, requestId)
+  }
+
   printReport(report)
+  if (output !== null) {
+    mkdirSync(dirname(output), { recursive: true })
+    writeFileSync(output, JSON.stringify(report, null, 2))
+    console.log(`wrote ${output}`)
+  }
 } finally {
   if (proxyServer !== null) {
     proxyServer.close()

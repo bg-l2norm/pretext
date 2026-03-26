@@ -1,6 +1,6 @@
 ## Pretext
 
-Internal notes for contributors and agents. Use `README.md` as the public source of truth for API examples and user-facing limitations. Use `STATUS.md` for the compact current browser-accuracy / benchmark dashboard, `benchmarks/chrome.json` and `benchmarks/safari.json` for the checked-in current benchmark snapshots, `corpora/STATUS.md` for the compact corpus snapshot, `corpora/TAXONOMY.md` for the shared mismatch vocabulary, and `RESEARCH.md` for the detailed exploration log.
+Internal notes for contributors and agents. Use `README.md` as the public source of truth for API examples and user-facing limitations. Use `STATUS.md` for the compact current browser-accuracy / benchmark dashboard, `accuracy/chrome.json` / `accuracy/safari.json` / `accuracy/firefox.json` for the checked-in raw browser accuracy rows, `benchmarks/chrome.json` and `benchmarks/safari.json` for the checked-in current benchmark snapshots, `corpora/STATUS.md` for the compact corpus snapshot, `corpora/representative.json` for the current machine-readable representative corpus rows, `corpora/TAXONOMY.md` for the shared mismatch vocabulary, and `RESEARCH.md` for the detailed exploration log.
 
 ### Commands
 
@@ -8,8 +8,10 @@ Internal notes for contributors and agents. Use `README.md` as the public source
 - `bun run check` — typecheck + lint
 - `bun test` — lightweight invariant tests against the shipped implementation
 - `bun run accuracy-check` / `:safari` / `:firefox` — browser accuracy sweeps
+- `bun run accuracy-snapshot` / `:safari` / `:firefox` — full raw browser accuracy rows written to `accuracy/*.json`
 - `bun run benchmark-check` / `:safari` — benchmark snapshot with both the short shared corpus and long-form corpus stress rows, including `prepare()` phase split (`analyze` vs `measure`) for the long-form corpora
 - `bun run corpus-check --id=... --font='20px ...' --lineHeight=32` — corpus spot check with optional font override
+- `bun run corpus-representative` — refresh the checked-in representative corpus anchor rows in `corpora/representative.json`
 - `bun run corpus-sweep --id=... --samples=9 --font='20px ...'` — sampled width sweep; use this before a dense sweep on large corpora
 - `bun run corpus-font-matrix --id=... --samples=5` — sampled cross-font check for one checked-in corpus
 - `bun run corpus-taxonomy --id=... 300 450 600` — classify current mismatches by rough steering bucket (`edge-fit`, `glue-policy`, `boundary-discovery`, `shaping-context`, etc.) using the full browser diagnostics
@@ -29,8 +31,10 @@ Internal notes for contributors and agents. Use `README.md` as the public source
 - `src/test-data.ts` — shared corpus for browser accuracy pages/checkers and benchmarks
 - `src/layout.test.ts` — small durable invariant tests for the exported prepare/layout APIs
 - `pages/accuracy.ts` — browser sweep plus per-line diagnostics
+- `accuracy/chrome.json` / `accuracy/safari.json` / `accuracy/firefox.json` — checked-in raw accuracy rows backing `STATUS.md`
 - `pages/benchmark.ts` — performance comparisons
 - `benchmarks/chrome.json` / `benchmarks/safari.json` — checked-in current benchmark snapshots backing `STATUS.md`
+- `corpora/representative.json` — checked-in representative corpus anchor rows backing `corpora/STATUS.md`
 - `pages/diagnostic-utils.ts` — shared grapheme-safe diagnostic helpers used by the browser check pages
 - `pages/demos/bubbles.ts` — bubble shrinkwrap demo using the rich non-materializing line-range walker
 - `pages/demos/dynamic-layout.ts` — fixed-height editorial spread with a continuous two-column flow, obstacle-aware title routing, and live logo-driven reflow
@@ -68,6 +72,7 @@ Internal notes for contributors and agents. Use `README.md` as the public source
 - Thai historically mismatched because CSS and `Intl.Segmenter` use different internal dictionaries; keep it in the browser sweep when changing segmentation rules.
 - HarfBuzz probes need explicit LTR to avoid wrong direction on isolated Arabic words.
 - Accuracy pages and checkers are now expected to be green in all three installed browsers on fresh runs; if a page disagrees, suspect stale tabs/servers before changing the algorithm.
+- The browser automation lock is self-healing for stale dead-owner files now, but it is still single-owner per browser. If a checker times out on the lock, confirm a live checker process still owns it before changing the algorithm.
 - Accuracy/corpus/Gatsby checkers can use background-safe browser automation, but benchmark runs should stay foreground. Do not “optimize away” benchmark focus; throttled/background tabs make the numbers less trustworthy.
 - Refresh `benchmarks/chrome.json` and `benchmarks/safari.json` when a diff changes benchmark methodology or the text engine hot path (`src/analysis.ts`, `src/measurement.ts`, `src/line-break.ts`, `src/layout.ts`, `src/bidi.ts`, or `pages/benchmark.ts`). `STATUS.md` should stay a compact dashboard, not the only source of current benchmark numbers.
 - `bun start` is the live human-facing dev server and now runs with `--watch` (full code reload). The scripted checkers intentionally keep using `--no-hmr` temporary servers so their runs stay deterministic and easy to tear down.
@@ -105,6 +110,8 @@ Internal notes for contributors and agents. Use `README.md` as the public source
 - Two tempting Chinese follow-ups were tried and rejected: carrying stranded closing quotes like `」` / `』` forward onto the next CJK segment, and coalescing standalone `——` / `……` runs. Both made `祝福` worse on the broader Chrome sweep. Treat the remaining Chinese field as a real canary, not an obviously missing preprocessing rule.
 - The corpus diagnostics should derive our candidate lines from `layoutWithLines()`, not from a second local line-walker. That avoids SHY and future custom-break drift between the hot path and the diagnostic path.
 - Current line-fit tolerance is `0.005` for Chromium/Gecko and `1/64` for Safari/WebKit. That bump was justified by the remaining Arabic fine-width field and did not move the solved browser corpus or Gatsby coarse canary.
+- Refresh `accuracy/chrome.json`, `accuracy/safari.json`, and `accuracy/firefox.json` when a diff changes the browser sweep methodology or the main text engine behavior (`src/analysis.ts`, `src/measurement.ts`, `src/line-break.ts`, `src/layout.ts`, `src/bidi.ts`, or `pages/accuracy.ts`).
+- Refresh `corpora/representative.json` when a diff intentionally changes one of the tracked representative canaries or their canonical anchor behavior. Keep it compact: anchors and designated fragile-width sentinels, not every exploratory sweep result.
 
 ### Open questions
 
