@@ -53,6 +53,7 @@ import {
 import {
   type BreakableFitMode,
   clearMeasurementCaches,
+  setMeasureContext,
   getCorrectedSegmentWidth,
   getSegmentBreakableFitAdvances,
   getEngineProfile,
@@ -785,3 +786,5 @@ export function setLocale(locale?: string): void {
   setAnalysisLocale(locale)
   clearCache()
 }
+
+export { setMeasureContext }
